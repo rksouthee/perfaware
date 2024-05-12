@@ -19,6 +19,8 @@ if(BUILD_TESTING)
 	add_decoder_test(listing_0038_many_register_mov)
 	add_decoder_test(listing_0039_more_movs)
 	add_decoder_test(listing_0040_challenge_movs)
+	add_decoder_test(listing_0041_add_sub_cmp_jnz)
+	# TODO: add_decoder_test(listing_0042_completionist_decode)
 
 	find_package(Catch2 "3.5.4" EXACT REQUIRED)
 	add_executable(test_sim86 test_printer.cpp)
