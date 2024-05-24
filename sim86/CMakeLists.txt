@@ -1,4 +1,4 @@
-add_library(printer printer.h printer.cpp)
+add_library(printer printer.h printer.cpp simulator.h simulator.cpp)
 
 find_package(cxxopts "3.2.1" EXACT REQUIRED)
 add_executable(sim86 main.cpp)

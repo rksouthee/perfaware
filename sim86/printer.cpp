@@ -188,6 +188,31 @@ namespace
 		return op_reg_immed_16("mov", first, last, "dx");
 	}
 
+	PRINT_FN(mov_bx_immed)
+	{
+		return op_reg_immed_16("mov", first, last, "bx");
+	}
+
+	PRINT_FN(mov_sp_immed)
+	{
+		return op_reg_immed_16("mov", first, last, "sp");
+	}
+
+	PRINT_FN(mov_bp_immed)
+	{
+		return op_reg_immed_16("mov", first, last, "bp");
+	}
+
+	PRINT_FN(mov_si_immed)
+	{
+		return op_reg_immed_16("mov", first, last, "si");
+	}
+
+	PRINT_FN(mov_di_immed)
+	{
+		return op_reg_immed_16("mov", first, last, "di");
+	}
+
 	PRINT_FN(mov_mem_immed_8)
 	{
 		return op_mem_immed_8("mov", first, last);
@@ -508,11 +533,11 @@ namespace
 		/* 0xb8 */ mov_ax_immed,
 		/* 0xb9 */ mov_cx_immed,
 		/* 0xba */ mov_dx_immed,
-		/* 0xbb */ bytes,
-		/* 0xbc */ bytes,
-		/* 0xbd */ bytes,
-		/* 0xbe */ bytes,
-		/* 0xbf */ bytes,
+		/* 0xbb */ mov_bx_immed,
+		/* 0xbc */ mov_sp_immed,
+		/* 0xbd */ mov_bp_immed,
+		/* 0xbe */ mov_si_immed,
+		/* 0xbf */ mov_di_immed,
 		/* 0xc0 */ bytes,
 		/* 0xc1 */ bytes,
 		/* 0xc2 */ bytes,

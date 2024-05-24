@@ -1,4 +1,5 @@
 #include "printer.h"
+#include "simulator.h"
 
 #include <cstdlib>
 #include <cstdint>
@@ -40,7 +41,7 @@ namespace
 		}
 	}
 
-	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os)
+	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os, bool execute)
 	{
 		os << "bits 16" << std::endl;
 
@@ -48,13 +49,26 @@ namespace
 
 		const std::uint8_t* first = &data[0];
 		const std::uint8_t* last = first + data.size();
+		sim86::Context ctx{};
 		do
 		{
 			const sim86::PrintResult result = sim86::print(first, last);
+			if (execute) sim86::execute(first, last, ctx);
 			os << result.code << std::endl;
 			first = result.end;
 		}
 		while (first != last);
+
+		if (execute)
+		{
+			static const char* const s_names[8] = {
+				"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"
+			};
+			for (std::size_t i = 0; i < std::size(ctx.registers); ++i)
+			{
+				os << s_names[i] << ": " << std::hex << ctx.registers[i] << std::endl;
+			}
+		}
 	}
 }
 
@@ -64,6 +78,7 @@ int main(int argc, char** argv)
 	options.add_options()
 		("file", "the binary file to decode", cxxopts::value<std::string>())
 		("o,output", "write output to file", cxxopts::value<std::string>())
+		("execute", "Execute the listing")
 		;
 	options.parse_positional({ "file" });
 
@@ -86,6 +101,6 @@ int main(int argc, char** argv)
 		p_out = &std::cout;
 	}
 
-	write_file(data, *p_out);
+	write_file(data, *p_out, result.count("execute"));
 	return EXIT_SUCCESS;
 }
