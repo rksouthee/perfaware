@@ -69,6 +69,21 @@ namespace
 				os << s_names[i] << ": " << std::hex << ctx.registers[i] << std::endl;
 			}
 		}
+
+		const char flags[] = "ZS";
+		os << "flags: ";
+		for (std::size_t i = 0; i < std::size(flags) - 1; ++i)
+		{
+			if (ctx.flags & (1 << i))
+			{
+				os << flags[i];
+			}
+			else
+			{
+				os << '-';
+			}
+		}
+		os << std::endl;
 	}
 }
 

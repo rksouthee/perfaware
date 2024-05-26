@@ -26,6 +26,93 @@ namespace
 		store_little_endian(ptr, immed);
 	}
 
+	EXECUTE_FN(sub_rm_reg_16)
+	{
+		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
+		const std::uint8_t reg = (first[1] >> 3) & 0x7;
+		ctx.registers[r_m] -= ctx.registers[reg];
+		if (ctx.registers[r_m] >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+
+		if (ctx.registers[r_m] == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+		}
+	}
+
+	EXECUTE_FN(cmp_rm_reg_16)
+	{
+		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
+		const std::uint8_t reg = (first[1] >> 3) & 0x7;
+		const std::uint16_t result = ctx.registers[r_m] - ctx.registers[reg];
+		if (result >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+
+		if (result == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+		}
+	}
+
+	EXECUTE_FN(op_rm_imm_16)
+	{
+		const std::uint8_t op = (first[1] >> 3) & 0x7;
+		const std::uint8_t r_m = first[1] & 0x7;
+		const std::uint16_t imm = first[2] | (first[3] << 8);
+		std::uint16_t result = 0;
+		switch (op)
+		{
+		case 0:
+			result = ctx.registers[r_m] += imm;
+			break;
+		case 5:
+			result = ctx.registers[r_m] -= imm;
+			break;
+		case 7:
+			result = ctx.registers[r_m] - imm;
+			break;
+		default:
+			std::cout << "unhandled op " << static_cast<int>(op) << std::endl;
+			break;
+		}
+		if (result >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+		if (result == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+		}
+	}
+
 	EXECUTE_FN(mov_ax_immed_16)
 	{
 		mov_reg_immed_16(0, first, last, ctx);
@@ -116,7 +203,7 @@ namespace
 		/* 0x26 */ noop,
 		/* 0x27 */ noop,
 		/* 0x28 */ noop,
-		/* 0x29 */ noop,
+		/* 0x29 */ sub_rm_reg_16,
 		/* 0x2a */ noop,
 		/* 0x2b */ noop,
 		/* 0x2c */ noop,
@@ -132,7 +219,7 @@ namespace
 		/* 0x36 */ noop,
 		/* 0x37 */ noop,
 		/* 0x38 */ noop,
-		/* 0x39 */ noop,
+		/* 0x39 */ cmp_rm_reg_16,
 		/* 0x3a */ noop,
 		/* 0x3b */ noop,
 		/* 0x3c */ noop,
@@ -204,7 +291,7 @@ namespace
 		/* 0x7e */ noop,
 		/* 0x7f */ noop,
 		/* 0x80 */ noop,
-		/* 0x81 */ noop,
+		/* 0x81 */ op_rm_imm_16,
 		/* 0x82 */ noop,
 		/* 0x83 */ noop,
 		/* 0x84 */ noop,
