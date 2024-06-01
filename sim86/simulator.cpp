@@ -4,6 +4,72 @@
 
 namespace
 {
+	std::uint32_t get_effective_address(const std::uint8_t r_m, const sim86::Context& ctx)
+	{
+		std::uint32_t addr = 0;
+		switch (r_m)
+		{
+		case 0:
+			addr = ctx.registers[3] + ctx.registers[6];
+			break;
+		case 1:
+			addr = ctx.registers[3] + ctx.registers[7];
+			break;
+		case 2:
+			addr = ctx.registers[5] + ctx.registers[6];
+			break;
+		case 3:
+			addr = ctx.registers[5] + ctx.registers[7];
+			break;
+		case 4:
+			addr = ctx.registers[6];
+			break;
+		case 5:
+			addr = ctx.registers[7];
+			break;
+		case 6:
+			addr = ctx.registers[5];
+			break;
+		case 7:
+			addr = ctx.registers[3];
+			break;
+		}
+		return addr;
+	}
+
+	std::uint8_t* get_address(std::uint8_t mod, std::uint8_t r_m, const std::uint8_t*& first, const std::uint8_t* last, sim86::Context& ctx)
+	{
+		std::uint32_t addr = 0;
+		switch (mod)
+		{
+		case 0:
+			if (r_m == 6)
+			{
+				addr = first[0] | (first[1] << 8);
+				first += 2;
+			}
+			else
+			{
+				addr = get_effective_address(r_m, ctx);
+			}
+			break;
+		case 1:
+			addr = get_effective_address(r_m, ctx) + static_cast<std::int8_t>(first[0]);
+			++first;
+			break;
+		case 2:
+			addr = get_effective_address(r_m, ctx) + (first[0] | (first[1] << 8));
+			first += 2;
+			break;
+		case 3:
+			return reinterpret_cast<std::uint8_t*>(&ctx.registers[r_m]);
+		default:
+			std::cerr << "unhandled mod " << static_cast<int>(mod) << std::endl;
+			break;
+		}
+		return ctx.memory + addr;
+	}
+
 #define EXECUTE_FN(name) void name(const std::uint8_t* first, const std::uint8_t* last, sim86::Context& ctx)
 	typedef EXECUTE_FN((*Execute_fn));
 
@@ -80,6 +146,32 @@ namespace
 		if (!(ctx.flags & sim86::Context::Flags_zero))
 		{
 			ctx.ip += offset;
+		}
+	}
+
+	EXECUTE_FN(add_rm_reg_16)
+	{
+		const std::uint8_t mod = first[1] >> 6;
+		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
+		const std::uint8_t reg = (first[1] >> 3) & 0x7;
+		std::uint16_t* dst = reinterpret_cast<std::uint16_t*>(get_address(mod, r_m, first, last, ctx));
+		const std::uint16_t* src = &ctx.registers[reg];
+		*dst += *src;
+		if (*dst >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+		if (*dst == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
 		}
 	}
 
@@ -201,17 +293,44 @@ namespace
 		mov_reg_immed_16(7, first, last, ctx);
 	}
 
+	EXECUTE_FN(mov_mem_immed_16)
+	{
+		const std::uint8_t mod = first[1] >> 6;
+		const std::uint8_t r_m = first[1] & 0x7;
+		first += 2;
+		std::uint8_t* ptr = get_address(mod, r_m, first, last, ctx);
+		ptr[0] = first[0];
+		ptr[1] = first[1];
+	}
+
 	EXECUTE_FN(mov_rm_reg_16)
 	{
+		const std::uint8_t mod = first[1] >> 6;
 		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
 		const std::uint8_t reg = (first[1] >> 3) & 0x7;
-		ctx.registers[r_m] = ctx.registers[reg];
+		first += 2;
+		std::uint8_t* dst = get_address(mod, r_m, first, last, ctx);
+		const auto* src = reinterpret_cast<std::uint8_t*>(&ctx.registers[reg]);
+		dst[0] = src[0];
+		dst[1] = src[1];
+	}
+
+	EXECUTE_FN(mov_reg_rm_16)
+	{
+		const std::uint8_t mod = first[1] >> 6;
+		const std::uint8_t reg = (first[1] >> 3) & 0x7;
+		const std::uint8_t r_m = first[1] & 0x7;
+		first += 2;
+		const std::uint8_t* src = get_address(mod, r_m, first, last, ctx);
+		auto* dst = reinterpret_cast<std::uint8_t*>(&ctx.registers[reg]);
+		dst[0] = src[0];
+		dst[1] = src[1];
 	}
 
 	const Execute_fn s_executors[256] =
 	{
 		/* 0x00 */ noop,
-		/* 0x01 */ noop,
+		/* 0x01 */ add_rm_reg_16,
 		/* 0x02 */ noop,
 		/* 0x03 */ noop,
 		/* 0x04 */ noop,
@@ -349,7 +468,7 @@ namespace
 		/* 0x88 */ noop,
 		/* 0x89 */ mov_rm_reg_16,
 		/* 0x8a */ noop,
-		/* 0x8b */ noop,
+		/* 0x8b */ mov_reg_rm_16,
 		/* 0x8c */ noop,
 		/* 0x8d */ noop,
 		/* 0x8e */ noop,
@@ -409,7 +528,7 @@ namespace
 		/* 0xc4 */ noop,
 		/* 0xc5 */ noop,
 		/* 0xc6 */ noop,
-		/* 0xc7 */ noop,
+		/* 0xc7 */ mov_mem_immed_16,
 		/* 0xc8 */ noop,
 		/* 0xc9 */ noop,
 		/* 0xca */ noop,

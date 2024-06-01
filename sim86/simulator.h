@@ -12,6 +12,7 @@ namespace sim86
 			Flags_zero = 1,
 			Flags_sign = 2,
 		};
+		std::uint8_t memory[0x10000];
 		std::uint16_t registers[8];
 		std::ptrdiff_t ip;
 		Flags flags;
