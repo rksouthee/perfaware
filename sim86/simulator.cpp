@@ -293,6 +293,16 @@ namespace
 		mov_reg_immed_16(7, first, last, ctx);
 	}
 
+	EXECUTE_FN(mov_mem_immed_8)
+	{
+		const std::uint8_t mod = first[1] >> 6;
+		const std::uint8_t r_m = first[1] & 0x7;
+		first += 2;
+		std::uint8_t* ptr = get_address(mod, r_m, first, last, ctx);
+		ptr[0] = first[0];
+		/* ptr[1] = first[1]; */
+	}
+
 	EXECUTE_FN(mov_mem_immed_16)
 	{
 		const std::uint8_t mod = first[1] >> 6;
@@ -527,7 +537,7 @@ namespace
 		/* 0xc3 */ noop,
 		/* 0xc4 */ noop,
 		/* 0xc5 */ noop,
-		/* 0xc6 */ noop,
+		/* 0xc6 */ mov_mem_immed_8,
 		/* 0xc7 */ mov_mem_immed_16,
 		/* 0xc8 */ noop,
 		/* 0xc9 */ noop,

@@ -41,17 +41,22 @@ namespace
 		}
 	}
 
-	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os, bool execute)
+	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os, const bool execute, const bool dump)
 	{
 		os << "bits 16" << std::endl;
 
 		if (data.empty()) return;
+		if (data.size() > sizeof(sim86::Context::memory))
+		{
+			std::cerr << "file too large" << std::endl;
+			std::exit(EXIT_FAILURE);
+		}
 
-		const std::uint8_t* last = &data[0] + data.size();
 		sim86::Context ctx{};
+		const std::uint8_t* last = std::copy(data.begin(), data.end(), ctx.memory);
 		while (static_cast<std::size_t>(ctx.ip) < data.size())
 		{
-			const std::uint8_t* first = &data[ctx.ip];
+			const std::uint8_t* first = &ctx.memory[ctx.ip];
 			const sim86::PrintResult result = sim86::print(first, last);
 			ctx.ip += result.end - first;
 			if (execute) sim86::execute(first, result.end, ctx);
@@ -85,6 +90,12 @@ namespace
 			}
 		}
 		os << std::endl;
+
+		if (dump)
+		{
+			std::ofstream dump_file("dump.data", std::ios::out | std::ios::binary);
+			dump_file.write(reinterpret_cast<const char*>(ctx.memory), std::size(ctx.memory));
+		}
 	}
 }
 
@@ -95,6 +106,7 @@ int main(int argc, char** argv)
 		("file", "the binary file to decode", cxxopts::value<std::string>())
 		("o,output", "write output to file", cxxopts::value<std::string>())
 		("execute", "Execute the listing")
+		("dump", "Dump the memory to a file")
 		;
 	options.parse_positional({ "file" });
 
@@ -117,6 +129,6 @@ int main(int argc, char** argv)
 		p_out = &std::cout;
 	}
 
-	write_file(data, *p_out, result.count("execute"));
+	write_file(data, *p_out, result.count("execute"), result.count("dump"));
 	return EXIT_SUCCESS;
 }
