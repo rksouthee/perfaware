@@ -10,7 +10,7 @@ namespace
 	EXECUTE_FN(noop)
 	{
 		std::cout << "skipping " << std::hex << static_cast<int>(*first) << std::endl;
-		ctx.ip += 1;
+		/* ctx.ip += 1; */
 	}
 
 	void store_little_endian(std::uint8_t* ptr, std::uint16_t val)
@@ -74,6 +74,15 @@ namespace
 		}
 	}
 
+	EXECUTE_FN(jnz_short_label)
+	{
+		const std::int8_t offset = static_cast<std::int8_t>(first[1]);
+		if (!(ctx.flags & sim86::Context::Flags_zero))
+		{
+			ctx.ip += offset;
+		}
+	}
+
 	EXECUTE_FN(op_rm_imm_16)
 	{
 		const std::uint8_t op = (first[1] >> 3) & 0x7;
@@ -93,6 +102,45 @@ namespace
 			break;
 		default:
 			std::cout << "unhandled op " << static_cast<int>(op) << std::endl;
+			break;
+		}
+		if (result >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+		if (result == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+		}
+	}
+
+	EXECUTE_FN(op_rm16_immed8)
+	{
+		const std::uint8_t op = (first[1] >> 3) & 0x7;
+		const std::uint8_t r_m = first[1] & 0x7;
+		const auto imm = static_cast<std::int16_t>(static_cast<std::int8_t>(first[2]));
+		std::uint16_t result = 0;
+		switch (op)
+		{
+		case 0:
+			result = ctx.registers[r_m] += imm;
+			break;
+		case 5:
+			result = ctx.registers[r_m] -= imm;
+			break;
+		case 7:
+			result = ctx.registers[r_m] - imm;
+			break;
+		default:
+			std::cerr << "unhandled op " << static_cast<int>(op) << std::endl;
 			break;
 		}
 		if (result >> 15)
@@ -279,7 +327,7 @@ namespace
 		/* 0x72 */ noop,
 		/* 0x73 */ noop,
 		/* 0x74 */ noop,
-		/* 0x75 */ noop,
+		/* 0x75 */ jnz_short_label,
 		/* 0x76 */ noop,
 		/* 0x77 */ noop,
 		/* 0x78 */ noop,
@@ -293,7 +341,7 @@ namespace
 		/* 0x80 */ noop,
 		/* 0x81 */ op_rm_imm_16,
 		/* 0x82 */ noop,
-		/* 0x83 */ noop,
+		/* 0x83 */ op_rm16_immed8,
 		/* 0x84 */ noop,
 		/* 0x85 */ noop,
 		/* 0x86 */ noop,

@@ -47,20 +47,21 @@ namespace
 
 		if (data.empty()) return;
 
-		const std::uint8_t* first = &data[0];
-		const std::uint8_t* last = first + data.size();
+		const std::uint8_t* last = &data[0] + data.size();
 		sim86::Context ctx{};
-		do
+		while (static_cast<std::size_t>(ctx.ip) < data.size())
 		{
+			const std::uint8_t* first = &data[ctx.ip];
 			const sim86::PrintResult result = sim86::print(first, last);
-			if (execute) sim86::execute(first, last, ctx);
-			os << result.code << std::endl;
-			first = result.end;
+			ctx.ip += result.end - first;
+			if (execute) sim86::execute(first, result.end, ctx);
+			os << result.code << " ; " << ctx.ip << std::endl;
 		}
-		while (first != last);
+
 
 		if (execute)
 		{
+			std::cout << "ip: " << std::hex << ctx.ip << std::endl;
 			static const char* const s_names[8] = {
 				"ax", "cx", "dx", "bx", "sp", "bp", "si", "di"
 			};
