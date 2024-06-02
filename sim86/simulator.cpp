@@ -4,33 +4,101 @@
 
 namespace
 {
+	std::uint32_t get_clocks_for_ea_components(std::uint8_t mod, std::uint8_t r_m)
+	{
+		std::uint32_t clocks = 0;
+		switch (mod)
+		{
+		case 0b00:
+			switch (r_m)
+			{
+			case 0: // bx + si
+				clocks = 7;
+				break;
+			case 1: // bx + di
+				clocks = 8;
+				break;
+			case 2: // bp + si
+				clocks = 8;
+				break;
+			case 3: // bp + di
+				clocks = 7;
+				break;
+			case 4: // si
+				clocks = 5;
+				break;
+			case 5: // di
+				clocks = 5;
+				break;
+			case 6: // displacement only
+				clocks = 6;
+				break;
+			case 7: // bx
+				clocks = 5;
+				break;
+			}
+			break;
+		case 0b01:
+		case 0b10:
+			switch (r_m)
+			{
+				case 0: // bx + si + disp
+					clocks = 11;
+					break;
+				case 1: // bx + di + disp
+					clocks = 12;
+					break;
+				case 2: // bp + si + disp
+					clocks = 12;
+					break;
+				case 3: // bp + di + disp
+					clocks = 11;
+					break;
+				case 4: // si + disp
+					clocks = 9;
+					break;
+				case 5: // di + disp
+					clocks = 9;
+					break;
+				case 6: // bp + disp
+					clocks = 9;
+					break;
+				case 7: // bx + disp
+					clocks = 9;
+					break;
+			}
+			break;
+		}
+		return clocks;
+	}
+
 	std::uint32_t get_effective_address(const std::uint8_t r_m, const sim86::Context& ctx)
 	{
 		std::uint32_t addr = 0;
 		switch (r_m)
 		{
-		case 0:
+		case 0: // bx + si
 			addr = ctx.registers[3] + ctx.registers[6];
 			break;
-		case 1:
-			addr = ctx.registers[3] + ctx.registers[7];
+		case 1: // bx + di
+			addr = ctx.registers[3] + ctx.registers[7]; 
 			break;
-		case 2:
+		case 2: // bp + si
 			addr = ctx.registers[5] + ctx.registers[6];
 			break;
-		case 3:
+		case 3: // bp + di
 			addr = ctx.registers[5] + ctx.registers[7];
 			break;
-		case 4:
+		case 4: // si
 			addr = ctx.registers[6];
 			break;
-		case 5:
+		case 5: // di
 			addr = ctx.registers[7];
 			break;
-		case 6:
+		case 6: // bp
 			addr = ctx.registers[5];
 			break;
-		case 7:
+		case 7: // bx
 			addr = ctx.registers[3];
 			break;
 		}
@@ -67,6 +135,7 @@ namespace
 			std::cerr << "unhandled mod " << static_cast<int>(mod) << std::endl;
 			break;
 		}
+		ctx.clocks += get_clocks_for_ea_components(mod, r_m);
 		return ctx.memory + addr;
 	}
 
@@ -76,7 +145,6 @@ namespace
 	EXECUTE_FN(noop)
 	{
 		std::cout << "skipping " << std::hex << static_cast<int>(*first) << std::endl;
-		/* ctx.ip += 1; */
 	}
 
 	void store_little_endian(std::uint8_t* ptr, std::uint16_t val)
@@ -85,59 +153,53 @@ namespace
 		ptr[1] = (val >> 8) & 0xff;
 	}
 
+	void set_flags(std::uint16_t val, sim86::Context& ctx)
+	{
+		if (val >> 15)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
+		}
+
+		if (val == 0)
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
+		}
+		else
+		{
+			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+		}
+	}
+
 	void mov_reg_immed_16(std::size_t reg, const std::uint8_t* first, const std::uint8_t* last, sim86::Context& ctx)
 	{
 		auto* ptr = reinterpret_cast<std::uint8_t*>(&ctx.registers[reg]);
 		const std::uint16_t immed = first[1] | (first[2] << 8);
 		store_little_endian(ptr, immed);
+		ctx.clocks = 4;
 	}
 
 	EXECUTE_FN(sub_rm_reg_16)
 	{
+		// NOTE(rksouthee): This is only handling the case where the mod is 11 (register)
 		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
 		const std::uint8_t reg = (first[1] >> 3) & 0x7;
 		ctx.registers[r_m] -= ctx.registers[reg];
-		if (ctx.registers[r_m] >> 15)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
-		}
-
-		if (ctx.registers[r_m] == 0)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
-		}
+		set_flags(ctx.registers[r_m], ctx);
+		ctx.clocks = 4;
 	}
 
 	EXECUTE_FN(cmp_rm_reg_16)
 	{
+		// NOTE(rksouthee): This is only handling the case where the mod is 11 (register)
 		const std::uint8_t r_m = (first[1] >> 0) & 0x7;
 		const std::uint8_t reg = (first[1] >> 3) & 0x7;
 		const std::uint16_t result = ctx.registers[r_m] - ctx.registers[reg];
-		if (result >> 15)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
-		}
-
-		if (result == 0)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
-		}
+		set_flags(result, ctx);
+		ctx.clocks = 3;
 	}
 
 	EXECUTE_FN(jnz_short_label)
@@ -146,6 +208,11 @@ namespace
 		if (!(ctx.flags & sim86::Context::Flags_zero))
 		{
 			ctx.ip += offset;
+			ctx.clocks = 16;
+		}
+		else
+		{
+			ctx.clocks = 4;
 		}
 	}
 
@@ -157,21 +224,16 @@ namespace
 		std::uint16_t* dst = reinterpret_cast<std::uint16_t*>(get_address(mod, r_m, first, last, ctx));
 		const std::uint16_t* src = &ctx.registers[reg];
 		*dst += *src;
-		if (*dst >> 15)
+		set_flags(*dst, ctx);
+		if (mod == 0b11)
 		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
+			// register,register
+			ctx.clocks += 3;
 		}
 		else
 		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
-		}
-		if (*dst == 0)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
+			// memory,register
+			ctx.clocks += 16;
 		}
 	}
 
@@ -183,35 +245,23 @@ namespace
 		std::uint16_t result = 0;
 		switch (op)
 		{
-		case 0:
+		case 0: // add
 			result = ctx.registers[r_m] += imm;
+			ctx.clocks += 4;
 			break;
-		case 5:
+		case 5: // sub
 			result = ctx.registers[r_m] -= imm;
+			ctx.clocks += 4;
 			break;
-		case 7:
+		case 7: // cmp
 			result = ctx.registers[r_m] - imm;
+			ctx.clocks += 4;
 			break;
 		default:
 			std::cout << "unhandled op " << static_cast<int>(op) << std::endl;
 			break;
 		}
-		if (result >> 15)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
-		}
-		if (result == 0)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
-		}
+		set_flags(result, ctx);
 	}
 
 	EXECUTE_FN(op_rm16_immed8)
@@ -222,35 +272,23 @@ namespace
 		std::uint16_t result = 0;
 		switch (op)
 		{
-		case 0:
+		case 0: // add
 			result = ctx.registers[r_m] += imm;
+			ctx.clocks += 4;
 			break;
-		case 5:
+		case 5: // sub
 			result = ctx.registers[r_m] -= imm;
+			ctx.clocks += 4;
 			break;
-		case 7:
+		case 7: // cmp
 			result = ctx.registers[r_m] - imm;
+			ctx.clocks += 4;
 			break;
 		default:
 			std::cerr << "unhandled op " << static_cast<int>(op) << std::endl;
 			break;
 		}
-		if (result >> 15)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_sign);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_sign);
-		}
-		if (result == 0)
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags | sim86::Context::Flags_zero);
-		}
-		else
-		{
-			ctx.flags = (sim86::Context::Flags)(ctx.flags & ~sim86::Context::Flags_zero);
-		}
+		set_flags(result, ctx);
 	}
 
 	EXECUTE_FN(mov_ax_immed_16)
@@ -300,7 +338,7 @@ namespace
 		first += 2;
 		std::uint8_t* ptr = get_address(mod, r_m, first, last, ctx);
 		ptr[0] = first[0];
-		/* ptr[1] = first[1]; */
+		ctx.clocks += 10;
 	}
 
 	EXECUTE_FN(mov_mem_immed_16)
@@ -311,6 +349,7 @@ namespace
 		std::uint8_t* ptr = get_address(mod, r_m, first, last, ctx);
 		ptr[0] = first[0];
 		ptr[1] = first[1];
+		ctx.clocks += 10;
 	}
 
 	EXECUTE_FN(mov_rm_reg_16)
@@ -323,6 +362,16 @@ namespace
 		const auto* src = reinterpret_cast<std::uint8_t*>(&ctx.registers[reg]);
 		dst[0] = src[0];
 		dst[1] = src[1];
+		if (mod == 0b11)
+		{
+			// register,register
+			ctx.clocks += 2;
+		}
+		else
+		{
+			// memory,register
+			ctx.clocks += 9;
+		}
 	}
 
 	EXECUTE_FN(mov_reg_rm_16)
@@ -335,6 +384,16 @@ namespace
 		auto* dst = reinterpret_cast<std::uint8_t*>(&ctx.registers[reg]);
 		dst[0] = src[0];
 		dst[1] = src[1];
+		if (mod == 0b11)
+		{
+			// register,register
+			ctx.clocks += 2;
+		}
+		else
+		{
+			// register,memory
+			ctx.clocks += 8;
+		}
 	}
 
 	const Execute_fn s_executors[256] =
@@ -603,6 +662,8 @@ namespace sim86
 	void execute(const std::uint8_t* first, const std::uint8_t* last, Context& ctx)
 	{
 		if (first == last) return;
+		ctx.clocks = 0;
 		s_executors[*first](first, last, ctx);
+		ctx.total_clocks += ctx.clocks;
 	}
 }

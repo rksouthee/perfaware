@@ -15,6 +15,8 @@ namespace sim86
 		std::uint8_t memory[0x10000];
 		std::uint16_t registers[8];
 		std::ptrdiff_t ip;
+		std::uint32_t clocks;
+		std::uint32_t total_clocks;
 		Flags flags;
 	};
 

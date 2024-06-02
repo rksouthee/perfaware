@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstdint>
 
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -41,7 +42,7 @@ namespace
 		}
 	}
 
-	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os, const bool execute, const bool dump)
+	void write_file(const std::vector<std::uint8_t>& data, std::ostream& os, const cxxopts::ParseResult& options)
 	{
 		os << "bits 16" << std::endl;
 
@@ -59,12 +60,26 @@ namespace
 			const std::uint8_t* first = &ctx.memory[ctx.ip];
 			const sim86::PrintResult result = sim86::print(first, last);
 			ctx.ip += result.end - first;
-			if (execute) sim86::execute(first, result.end, ctx);
-			os << result.code << " ; " << ctx.ip << std::endl;
+			std::string comment;
+			if (options.count("execute"))
+			{
+				sim86::execute(first, result.end, ctx);
+				if (options.count("showclocks"))
+				{
+					if (ctx.clocks == 0) os << " no clocks for " << std::hex << (int)first[0] << std::endl;
+					comment = std::format("Clocks: {:+d} = {:d}", ctx.clocks, ctx.total_clocks);
+				}
+			}
+
+			os << result.code;
+			if (!comment.empty())
+			{
+				os << " ; " << comment;
+			}
+			os << std::endl;
 		}
 
-
-		if (execute)
+		if (options.count("execute"))
 		{
 			std::cout << "ip: " << std::hex << ctx.ip << std::endl;
 			static const char* const s_names[8] = {
@@ -91,7 +106,7 @@ namespace
 		}
 		os << std::endl;
 
-		if (dump)
+		if (options.count("dump"))
 		{
 			std::ofstream dump_file("dump.data", std::ios::out | std::ios::binary);
 			dump_file.write(reinterpret_cast<const char*>(ctx.memory), std::size(ctx.memory));
@@ -107,6 +122,7 @@ int main(int argc, char** argv)
 		("o,output", "write output to file", cxxopts::value<std::string>())
 		("execute", "Execute the listing")
 		("dump", "Dump the memory to a file")
+		("showclocks", "Show the number of clocks taken")
 		;
 	options.parse_positional({ "file" });
 
@@ -129,6 +145,6 @@ int main(int argc, char** argv)
 		p_out = &std::cout;
 	}
 
-	write_file(data, *p_out, result.count("execute"), result.count("dump"));
+	write_file(data, *p_out, result);
 	return EXIT_SUCCESS;
 }
