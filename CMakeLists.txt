@@ -11,4 +11,7 @@ include(CTest)
 set(CMAKE_CXX_STANDARD 20)
 add_compile_options($<IF:$<CXX_COMPILER_ID:MSVC>,/W4,-Wall>)
 
+find_package(cxxopts "3.2.1" EXACT REQUIRED)
+
 add_subdirectory(sim86)
+add_subdirectory(part2)
