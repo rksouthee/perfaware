@@ -9,3 +9,7 @@ target_link_libraries(haversine PRIVATE json)
 add_library(platform_metrics STATIC platform_metrics.cpp platform_metrics.h)
 add_executable(listing_0075_timed_haversine_main listing_0075_timed_haversine_main.cpp)
 target_link_libraries(listing_0075_timed_haversine_main PRIVATE platform_metrics json)
+
+add_library(profiler STATIC profiler.cpp profiler.h)
+add_executable(profiled_haversine_main profiled_haversine_main.cpp)
+target_link_libraries(profiled_haversine_main PRIVATE profiler platform_metrics json)

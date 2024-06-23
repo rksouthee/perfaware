@@ -47,4 +47,14 @@ namespace perf
 		}
 		return cpu_frequency;
 	}
+
+	std::uint64_t ticks_to_ms(std::uint64_t ticks)
+	{
+		static std::uint64_t cpu_frequency = estimate_cpu_timer_freq();
+		if (cpu_frequency)
+		{
+			return ticks * 1000 / cpu_frequency;
+		}
+		return 0;
+	}
 }
