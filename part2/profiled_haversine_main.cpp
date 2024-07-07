@@ -106,4 +106,3 @@ int main()
 	profiler::g_profiler.end();
 	profiler::g_profiler.dump();
 }
-

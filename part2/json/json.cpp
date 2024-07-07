@@ -1,4 +1,5 @@
 #include "json.h"
+#include "..\profiler.h"
 
 #include <cassert>
 
@@ -260,6 +261,7 @@ begin:
 
 	Json parse(Token_iterator& f, Token_iterator l)
 	{
+		TIME_FUNCTION;
 		if (f == l) return Json{};
 		switch (f->type)
 		{

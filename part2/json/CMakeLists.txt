@@ -1,4 +1,5 @@
 add_library(json json.h json.cpp)
+target_link_libraries(json PRIVATE profiler)
 
 if(BUILD_TESTING)
 	add_executable(test_json test_json.cpp)
