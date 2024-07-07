@@ -53,10 +53,15 @@ namespace profiler
 		Section_wrapper(std::size_t index, std::uint64_t start);
 		~Section_wrapper();
 	};
+}
 
+#if PROFILER
 #define TIME_BLOCK_(name, counter) \
 	static std::size_t s_profile_section_counter_##counter = profiler::g_profiler.make_section(name, std::source_location::current());\
 	const profiler::Section_wrapper _profile_section_wrapper_##counter{s_profile_section_counter_##counter, perf::get_cpu_timer()}
 #define TIME_BLOCK(name) TIME_BLOCK_(name, __COUNTER__)
 #define TIME_FUNCTION TIME_BLOCK_(__FUNCTION__, __COUNTER__)
-}
+#else
+#define TIME_BLOCK(name)
+#define TIME_FUNCTION
+#endif
