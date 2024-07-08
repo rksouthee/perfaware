@@ -12,12 +12,12 @@ namespace profiler
 	{
 		m_sections.reserve(4096);
 		m_start = perf::get_cpu_timer();
-		m_sections.emplace_back(0, 0, 0, "Root", std::source_location::current());
+		m_sections.emplace_back(0, 0, 0, 0, "Root", std::source_location::current());
 	}
 
 	std::size_t Profiler::make_section(const char* name, std::source_location location)
 	{
-		(void)m_sections.emplace_back(0, 0, 0, name, location);
+		(void)m_sections.emplace_back(0, 0, 0, 0, name, location);
 		return m_sections.size() - 1;
 	}
 
@@ -40,6 +40,13 @@ namespace profiler
 			const float percentage_with_children = static_cast<float>(section.elapsed_inclusive) / total_elapsed * 100.0f;
 			std::cout << std::format(", {:.2f}% with children", percentage_with_children);
 		}
+
+		if (section.bytes_processed != 0)
+		{
+			const float mb_processed = static_cast<float>(section.bytes_processed) / (1024.0f * 1024.0f);
+			const float gb_throughput = static_cast<float>(section.bytes_processed) / (1024.0f * 1024.0f * 1024.0f) / (perf::ticks_to_ms(section.elapsed_exclusive) / 1000.0f);
+			std::cout << std::format(", {:.2f}MB at {:.2f}GB/s", mb_processed, gb_throughput);
+		}
 		std::cout << ')' << std::endl;
 	}
 
@@ -55,12 +62,14 @@ namespace profiler
 		}
 	}
 
-	Section_wrapper::Section_wrapper(std::size_t index, std::uint64_t start) :
+	Section_wrapper::Section_wrapper(std::size_t index, std::uint64_t bytes, std::uint64_t start) :
 		m_index(index),
 		m_parent(g_profiler.get_active_section()),
 		m_start(start)
 	{
-		m_old_elapsed_inclusive = g_profiler.get_section(m_index).elapsed_inclusive;
+		Section& section = g_profiler.get_section(m_index);
+		m_old_elapsed_inclusive = section.elapsed_inclusive;
+		section.bytes_processed += bytes;
 		g_profiler.set_active_section(m_index);
 	}
 

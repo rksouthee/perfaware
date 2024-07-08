@@ -12,6 +12,7 @@ namespace profiler
 	{
 		std::uint64_t elapsed_exclusive;
 		std::uint64_t elapsed_inclusive;
+		std::uint64_t bytes_processed;
 		std::uint64_t hit_count;
 		const char* name;
 		std::source_location location;
@@ -50,18 +51,20 @@ namespace profiler
 		std::uint64_t m_old_elapsed_inclusive;
 
 	public:
-		Section_wrapper(std::size_t index, std::uint64_t start);
+		Section_wrapper(std::size_t index, std::uint64_t bytes, std::uint64_t start);
 		~Section_wrapper();
 	};
 }
 
 #if PROFILER
-#define TIME_BLOCK_(name, counter) \
+#define TIME_BLOCK_(name, bytes, counter) \
 	static std::size_t s_profile_section_counter_##counter = profiler::g_profiler.make_section(name, std::source_location::current());\
-	const profiler::Section_wrapper _profile_section_wrapper_##counter{s_profile_section_counter_##counter, perf::get_cpu_timer()}
-#define TIME_BLOCK(name) TIME_BLOCK_(name, __COUNTER__)
-#define TIME_FUNCTION TIME_BLOCK_(__FUNCTION__, __COUNTER__)
+	const profiler::Section_wrapper _profile_section_wrapper_##counter{s_profile_section_counter_##counter, bytes, perf::get_cpu_timer()}
+#define TIME_BYTES_PROCESSED(name, bytes) TIME_BLOCK_(name, bytes, __COUNTER__)
+#define TIME_BLOCK(name) TIME_BYTES_PROCESSED(name, 0)
+#define TIME_FUNCTION TIME_BLOCK(__FUNCTION__)
 #else
+#define TIME_BYTES_PROCESSED(name, bytes)
 #define TIME_BLOCK(name)
 #define TIME_FUNCTION
 #endif

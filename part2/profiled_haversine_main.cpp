@@ -65,14 +65,14 @@ std::string read_file(const char* file_name)
 
 const json::Json parse_json(const std::string& content)
 {
-	TIME_FUNCTION;
+	TIME_BYTES_PROCESSED("parse_json", content.size());
 	const json::Json json_data = json::parse(content);
 	return json_data;
 }
 
 double calculate_sum(const json::Array& pairs, std::size_t number)
 {
-	TIME_FUNCTION;
+	TIME_BYTES_PROCESSED("sum", pairs.size() * 4 * sizeof(double));
 	double sum = 0.0;
 	for (const json::Json& pair : pairs)
 	{
