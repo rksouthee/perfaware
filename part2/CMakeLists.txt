@@ -17,3 +17,6 @@ target_compile_definitions(profiler PUBLIC PROFILER=$<BOOL:${PROFILER}>)
 
 add_executable(profiled_haversine_main profiled_haversine_main.cpp)
 target_link_libraries(profiled_haversine_main PRIVATE profiler platform_metrics json)
+
+add_executable(time_file_read time_file_read.cpp)
+target_link_libraries(time_file_read PRIVATE platform_metrics)
