@@ -1,6 +1,7 @@
 #include "platform_metrics.h"
 
 #include <windows.h>
+#include <psapi.h>
 #include <intrin.h>
 
 namespace perf
@@ -54,6 +55,16 @@ namespace perf
 		if (cpu_frequency)
 		{
 			return ticks * 1000 / cpu_frequency;
+		}
+		return 0;
+	}
+
+	std::uint64_t get_page_fault_count()
+	{
+		PROCESS_MEMORY_COUNTERS memory_info;
+		if (GetProcessMemoryInfo(GetCurrentProcess(), &memory_info, sizeof(memory_info)))
+		{
+			return memory_info.PageFaultCount;
 		}
 		return 0;
 	}

@@ -26,6 +26,7 @@ struct Tester
 	std::size_t iterations;
 	std::size_t time_since_last_min;
 	std::size_t max_time_between_mins;
+	std::size_t page_faults;
 };
 
 bool is_testing(const Tester& tester)
@@ -36,11 +37,13 @@ bool is_testing(const Tester& tester)
 void begin_test(Tester& tester)
 {
 	tester.start_time = perf::get_cpu_timer();
+	tester.page_faults -= perf::get_page_fault_count();
 }
 
 void end_test(Tester& tester)
 {
 	++tester.iterations;
+	tester.page_faults += perf::get_page_fault_count();
 	if (tester.state != Tester_state::testing)
 	{
 		return;
@@ -71,7 +74,12 @@ void error(Tester& tester, const std::string& message)
 
 void dump_test_results(const Tester& tester)
 {
-	std::cout << "min time: " << tester.min_time << " ms" << std::endl;
+	std::cout << "min time: " << tester.min_time << " ms";
+	if (tester.page_faults > 0)
+	{
+		std::cout << " page faults: " << tester.page_faults;
+	}
+	std::cout << std::endl;
 }
 
 struct Buffer
