@@ -74,67 +74,133 @@ void dump_test_results(const Tester& tester)
 	std::cout << "min time: " << tester.min_time << " ms" << std::endl;
 }
 
+struct Buffer
+{
+	void* data;
+	std::size_t size;
+};
+
+enum class Allocation_type
+{
+	none,
+	allocate,
+};
+
 struct Read_parameters
 {
 	const std::string& path;
-	std::string& buffer;
+	Buffer buffer;
+	Allocation_type allocation_type;
 };
 
-void test_win32_read_file(Tester& tester, const Read_parameters& params)
+void handle_allocation(Read_parameters& params)
 {
-	std::cout << "test_win32_read_file" << std::endl;
+	switch (params.allocation_type)
+	{
+	case Allocation_type::none:
+		{
+			break;
+		}
+	case Allocation_type::allocate:
+		{
+			params.buffer.data = std::malloc(params.buffer.size);
+			break;
+		}
+	}
+}
+
+void handle_deallocation(Read_parameters& params)
+{
+	switch (params.allocation_type)
+	{
+	case Allocation_type::none:
+		{
+			break;
+		}
+	case Allocation_type::allocate:
+		{
+			std::free(params.buffer.data);
+			break;
+		}
+	}
+}
+
+const char* describe_allocation_type(Allocation_type type)
+{
+	switch (type)
+	{
+	case Allocation_type::none:
+		{
+			return "none";
+		}
+	case Allocation_type::allocate:
+		{
+			return "allocate";
+		}
+	}
+	return "unknown";
+}
+
+void test_win32_read_file(Tester& tester, Read_parameters& params)
+{
+	std::cout << "test_win32_read_file " << describe_allocation_type(params.allocation_type) << std::endl;
 	while (is_testing(tester))
 	{
-		begin_test(tester);
 		HANDLE handle = CreateFileA(params.path.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (handle)
 		{
+			handle_allocation(params);
 			DWORD total_bytes_read = 0;
 			DWORD read_bytes = 0;
-			while (total_bytes_read < params.buffer.size() &&
-			       ReadFile(handle, (void*)&params.buffer[total_bytes_read], params.buffer.size() - total_bytes_read, &read_bytes, NULL))
+			auto ptr = (unsigned char*)params.buffer.data;
+			begin_test(tester);
+			while (total_bytes_read < params.buffer.size &&
+			       ReadFile(handle, &ptr[total_bytes_read], params.buffer.size - total_bytes_read, &read_bytes, NULL))
 			{
 				total_bytes_read += read_bytes;
 			}
-			if (total_bytes_read < params.buffer.size())
+			end_test(tester);
+			if (total_bytes_read < params.buffer.size)
 			{
 				error(tester, "failed to read file");
 			}
+			handle_deallocation(params);
 			CloseHandle(handle);
 		}
 		else
 		{
 			error(tester, "failed to open file");
 		}
-		end_test(tester);
 	}
 }
 
-void test_fread(Tester& tester, const Read_parameters& params)
+void test_fread(Tester& tester, Read_parameters& params)
 {
-	std::cout << "test_fread" << std::endl;
+	std::cout << "test_fread " << describe_allocation_type(params.allocation_type) << std::endl;
 	while (is_testing(tester))
 	{
-		begin_test(tester);
 		std::FILE* stream = std::fopen(params.path.c_str(), "rb");
 		if (stream)
 		{
-			std::size_t count = std::fread((void*)params.buffer.data(), params.buffer.size(), 1, stream);
+			handle_allocation(params);
+			begin_test(tester);
+			std::size_t count = std::fread(params.buffer.data, params.buffer.size, 1, stream);
+			end_test(tester);
 			if (count != 1)
 			{
 				error(tester, "failed to read file");
 			}
+			handle_deallocation(params);
 			std::fclose(stream);
 		}
 		else
 		{
 			error(tester, "failed to open file");
 		}
-		end_test(tester);
 	}
 }
 
-using Read_fn = void(*)(Tester& tester, const Read_parameters& params);
+using Read_fn = void(*)(Tester& tester, Read_parameters& params);
 
 const Read_fn s_read_fns[] =
 {
@@ -158,16 +224,59 @@ std::uint64_t get_file_size(const std::string& path)
 	return result;
 }
 
+Buffer make_buffer(Allocation_type allocation_type, const std::size_t size)
+{
+	Buffer buffer{};
+	buffer.size = size;
+	switch (allocation_type)
+	{
+	case Allocation_type::none:
+		{
+			if (buffer.size > 0)
+			{
+				buffer.data = std::malloc(buffer.size);
+			}
+			break;
+		}
+	case Allocation_type::allocate:
+		{
+			break;
+		}
+	}
+	return buffer;
+}
+
+void free_buffer(const Buffer& buffer, Allocation_type allocation_type)
+{
+	switch (allocation_type)
+	{
+	case Allocation_type::none:
+		{
+			std::free(buffer.data);
+			break;
+		}
+	case Allocation_type::allocate:
+		{
+			break;
+		}
+	}
+}
+
 int main()
 {
+	static const Allocation_type allocation_types[] = {Allocation_type::none, Allocation_type::allocate};
 	const std::string path = "haversine_data.json";
-	std::string buffer(get_file_size(path), '\0');
+	const std::size_t file_size = get_file_size(path);
 	for (const auto& fn : s_read_fns)
 	{
-		Tester tester{};
-		tester.max_time_between_mins = 10'000;
-		const Read_parameters params{path, buffer};
-		fn(tester, params);
-		dump_test_results(tester);
+		for (const Allocation_type allocation_type : allocation_types)
+		{
+			Read_parameters params{path, make_buffer(allocation_type, file_size), allocation_type};
+			Tester tester{};
+			tester.max_time_between_mins = 10'000;
+			fn(tester, params);
+			dump_test_results(tester);
+			free_buffer(params.buffer, allocation_type);
+		}
 	}
 }
