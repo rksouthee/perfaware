@@ -20,3 +20,6 @@ target_link_libraries(profiled_haversine_main PRIVATE profiler platform_metrics 
 
 add_executable(time_file_read time_file_read.cpp)
 target_link_libraries(time_file_read PRIVATE platform_metrics)
+
+add_executable(count_page_faults count_page_faults.cpp)
+target_link_libraries(count_page_faults PRIVATE platform_metrics)
