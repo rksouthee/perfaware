@@ -26,3 +26,7 @@ target_link_libraries(count_page_faults PRIVATE platform_metrics)
 
 add_executable(profile_move_bytes profile_move_bytes.cpp move_bytes.asm)
 target_link_libraries(profile_move_bytes PRIVATE profiler)
+
+# Part 3: 9. CPU Front End Basics
+add_executable(time_front_end time_front_end.cpp noops.asm)
+target_link_libraries(time_front_end PRIVATE profiler)
