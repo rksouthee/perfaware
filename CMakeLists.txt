@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 project(perfaware
 	VERSION 0.0.1
-	LANGUAGES CXX
+	LANGUAGES CXX ASM_NASM
 	DESCRIPTION "Homework for the Performance-Aware Programming Series"
 	)
 
