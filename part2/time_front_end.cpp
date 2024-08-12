@@ -1,4 +1,5 @@
 #include "repetition_tester.h"
+#include "platform_metrics.h"
 
 #include <iostream>
 
@@ -6,11 +7,11 @@ extern "C" void nop_3x1_all_bytes(std::uint64_t count);
 extern "C" void nop_1x3_all_bytes(std::uint64_t count);
 extern "C" void nop_1x9_all_bytes(std::uint64_t count);
 
-using TestFunction = void(*)(std::uint64_t);
+using Test_function = void(*)(std::uint64_t);
 
 struct Test
 {
-	TestFunction function;
+	Test_function function;
 	const char* name;
 };
 
@@ -23,16 +24,22 @@ int main()
 		{nop_1x9_all_bytes, "nop_1x9_all_bytes"},
 	};
 	constexpr std::uint64_t count = 5 * 1024 * 1024;
-	for (const Test& test : tests)
+	Tester testers[std::size(tests)] = {};
+	while (true)
 	{
-		std::cout << test.name << std::endl;
-		Tester tester{};
-		while (is_testing(tester))
+		for (std::size_t i = 0; i < std::size(tests); ++i)
 		{
-			begin_test(tester);
-			test.function(count);
-			end_test(tester);
+			Tester& tester = testers[i];
+			const Test test = tests[i];
+			std::cout << "\n--- " << test.name << " ---\n";
+			new_test_wave(tester, count, perf::get_cpu_timer());
+			while (is_testing(tester))
+			{
+				begin_time(tester);
+				test.function(count);
+				end_time(tester);
+				count_bytes(tester, count);
+			}
 		}
-		dump_test_results(tester);
 	}
 }

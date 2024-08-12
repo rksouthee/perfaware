@@ -2,6 +2,7 @@
 #define WIN32_LEAN_AND_MEAN
 
 #include "repetition_tester.h"
+#include "platform_metrics.h"
 
 #include <iostream>
 #include <string>
@@ -89,17 +90,14 @@ void test_win32_read_file(Tester& tester, Read_parameters& params)
 			DWORD total_bytes_read = 0;
 			DWORD read_bytes = 0;
 			auto ptr = (unsigned char*)params.buffer.data;
-			begin_test(tester);
+			begin_time(tester);
 			while (total_bytes_read < params.buffer.size &&
 			       ReadFile(handle, &ptr[total_bytes_read], params.buffer.size - total_bytes_read, &read_bytes, NULL))
 			{
 				total_bytes_read += read_bytes;
 			}
-			end_test(tester);
-			if (total_bytes_read < params.buffer.size)
-			{
-				error(tester, "failed to read file");
-			}
+			end_time(tester);
+			count_bytes(tester, total_bytes_read);
 			handle_deallocation(params);
 			CloseHandle(handle);
 		}
@@ -119,13 +117,10 @@ void test_fread(Tester& tester, Read_parameters& params)
 		if (stream)
 		{
 			handle_allocation(params);
-			begin_test(tester);
+			begin_time(tester);
 			std::size_t count = std::fread(params.buffer.data, params.buffer.size, 1, stream);
-			end_test(tester);
-			if (count != 1)
-			{
-				error(tester, "failed to read file");
-			}
+			end_time(tester);
+			count_bytes(tester, count);
 			handle_deallocation(params);
 			std::fclose(stream);
 		}
@@ -203,15 +198,17 @@ int main()
 	static const Allocation_type allocation_types[] = {Allocation_type::none, Allocation_type::allocate};
 	const std::string path = "haversine_data.json";
 	const std::size_t file_size = get_file_size(path);
-	for (const auto& fn : s_read_fns)
+	Tester testers[std::size(s_read_fns)][std::size(allocation_types)] = {};
+	for (std::size_t i = 0; i < std::size(s_read_fns); ++i)
 	{
-		for (const Allocation_type allocation_type : allocation_types)
+		const Read_fn fn = s_read_fns[i];
+		for (std::size_t j = 0; j < std::size(allocation_types); ++j)
 		{
+			const Allocation_type allocation_type = allocation_types[j];
+			Tester& tester = testers[i][j];
+			new_test_wave(tester, file_size, perf::get_cpu_timer());
 			Read_parameters params{path, make_buffer(allocation_type, file_size), allocation_type};
-			Tester tester{};
-			tester.max_time_between_mins = 10'000;
 			fn(tester, params);
-			dump_test_results(tester);
 			free_buffer(params.buffer, allocation_type);
 		}
 	}

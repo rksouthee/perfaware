@@ -1,57 +1,44 @@
 #include "repetition_tester.h"
+#include "platform_metrics.h"
 
 #include <iostream>
 
-extern "C" std::uint64_t mov_all_bytes(std::uint64_t count, std::uint8_t* dst);
-extern "C" std::uint64_t nop_all_bytes(std::uint64_t count);
+extern "C" void mov_all_bytes(std::uint64_t count, std::uint8_t* dst);
+extern "C" void nop_all_bytes(std::uint64_t count, std::uint8_t* dst);
 
-using TestFunction = void(*)(std::uint64_t, std::uint8_t*);
-
-void test_mov_all_bytes(std::uint64_t count, std::uint8_t* data)
-{
-	Tester tester;
-	while (is_testing(tester))
-	{
-		begin_test(tester);
-		mov_all_bytes(count, data);
-		end_test(tester);
-		/* count_bytes(tester, count); */
-	}
-	dump_test_results(tester);
-}
-
-void test_nop_all_bytes(std::uint64_t count, std::uint8_t* data)
-{
-	Tester tester;
-	while (is_testing(tester))
-	{
-		begin_test(tester);
-		nop_all_bytes(count);
-		end_test(tester);
-		/* count_bytes(tester, count); */
-	}
-	dump_test_results(tester);
-}
+using Test_function = void(*)(std::uint64_t, std::uint8_t*);
 
 struct Test
 {
-	TestFunction function;
+	Test_function function;
 	const char* name;
 };
 
 int main()
 {
-	Test tests[] =
+	const Test tests[] =
 	{
-		{test_mov_all_bytes, "mov_all_bytes"},
-		{test_nop_all_bytes, "nop_all_bytes"}
+		{mov_all_bytes, "mov_all_bytes"},
+		{nop_all_bytes, "nop_all_bytes"}
 	};
 	constexpr std::uint64_t count = 1024;
 	auto data = std::make_unique<std::uint8_t[]>(count);
-
-	for (const Test& test : tests)
+	Tester testers[std::size(tests)] = {};
+	while (true)
 	{
-		std::cout << test.name << std::endl;
-		test.function(count, data.get());
+		for (std::size_t i = 0; i < std::size(tests); ++i)
+		{
+			Tester& tester = testers[i];
+			const Test test = tests[i];
+			std::cout << "\n--- " << test.name << " ---\n";
+			new_test_wave(tester, count, perf::get_cpu_timer());
+			while (is_testing(tester))
+			{
+				begin_time(tester);
+				test.function(count, data.get());
+				end_time(tester);
+				count_bytes(tester, count);
+			}
+		}
 	}
 }
