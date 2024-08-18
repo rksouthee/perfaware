@@ -21,3 +21,4 @@ endif()
 
 add_subdirectory(sim86)
 add_subdirectory(part2)
+add_subdirectory(part3)

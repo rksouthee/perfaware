@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <cstddef>
+#include <cstdint>
 
 enum class Test_state
 {
@@ -48,7 +49,7 @@ struct Tester
 	Test_result results;
 };
 
-void error(Tester& tester, const std::string_view message);
+void error(Tester& tester, std::string_view message);
 void new_test_wave(Tester& tester, std::uint64_t target_processed_byte_count, std::uint64_t cpu_timer_frequency, std::uint32_t seconds_to_try = 10);
 bool is_testing(Tester& tester);
 void begin_time(Tester& tester);
