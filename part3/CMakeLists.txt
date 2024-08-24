@@ -14,3 +14,7 @@ target_link_libraries(profile_write_ports PRIVATE profiler)
 ## Increasing Read Bandwidth with SIMD Instructions
 add_executable(profile_read_wide read_wide_main.cpp read_wide.asm)
 target_link_libraries(profile_read_wide PRIVATE profiler)
+
+## Cache Size and Bandwidth Testing
+add_executable(profile_cache_size cache_size_main.cpp cache_size.asm)
+target_link_libraries(profile_cache_size PRIVATE profiler)

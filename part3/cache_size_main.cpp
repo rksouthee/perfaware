@@ -1,7 +1,3 @@
-/*
- * Listing 151
- */
-
 #include "..\part2\platform_metrics.h"
 #include "..\part2\repetition_tester.h"
 
@@ -11,29 +7,22 @@
 #include <string_view>
 #include <windows.h>
 
-extern "C" void read_4x3(std::uint64_t iterations, std::uint8_t* buffer);
-
-extern "C" void read_8x3(std::uint64_t iterations, std::uint8_t* buffer);
-
-extern "C" void read_16x3(std::uint64_t iterations, std::uint8_t* buffer);
-
-extern "C" void read_32x3(std::uint64_t iterations, std::uint8_t* buffer);
+extern "C" void process_bytes(std::uint64_t buffer_size, std::uint8_t* buffer, std::uint64_t mask);
 
 namespace
 {
-	using Function = void (*)(std::uint64_t, std::uint8_t*);
-
 	struct Test_function
 	{
 		std::string_view name;
-		Function function;
+		std::size_t mask;
 	};
 
 	constexpr Test_function s_test_functions[] = {
-		{"read_4x3", read_4x3},
-		{"read_8x3", read_8x3},
-		{"read_16x3", read_16x3},
-		{"read_32x3", read_32x3},
+		{"read_4kb", (4 * 1024) - 1},
+		{"read_1mb", (1 * 1024 * 1024) - 1},
+		{"read_8mb", (8 * 1024 * 1024) - 1},
+		{"read_16mb", (16 * 1024 * 1024) - 1},
+		{"read 64mb", (64 * 1024 * 1024) - 1},
 	};
 
 	[[noreturn]] void run(const std::unique_ptr<std::uint8_t[]>& buffer, const std::size_t buffer_size)
@@ -45,7 +34,7 @@ namespace
 			for (std::size_t i = 0; i < std::size(s_test_functions); ++i)
 			{
 				Tester& tester = testers[i];
-				auto [name, function] = s_test_functions[i];
+				auto [name, mask] = s_test_functions[i];
 
 				std::cout << "\n--- " << name << " ---" << std::endl;
 				new_test_wave(tester, buffer_size, cpu_timer_frequency);
@@ -53,7 +42,7 @@ namespace
 				while (is_testing(tester))
 				{
 					begin_time(tester);
-					function(buffer_size, buffer.get());
+					process_bytes(buffer_size, buffer.get(), mask);
 					end_time(tester);
 					count_bytes(tester, buffer_size);
 				}
