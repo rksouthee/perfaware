@@ -10,3 +10,7 @@ target_link_libraries(profile_read_ports PRIVATE profiler)
 ### Homework
 add_executable(profile_write_ports write_ports_main.cpp write_ports.asm)
 target_link_libraries(profile_write_ports PRIVATE profiler)
+
+## Increasing Read Bandwidth with SIMD Instructions
+add_executable(profile_read_wide read_wide_main.cpp read_wide.asm)
+target_link_libraries(profile_read_wide PRIVATE profiler)
