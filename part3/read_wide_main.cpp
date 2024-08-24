@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <string_view>
+#include <windows.h>
 
 extern "C" void read_4x3(std::uint64_t iterations, std::uint8_t *buffer);
 
@@ -28,8 +29,7 @@ namespace
 		Function function;
 	};
 
-	constexpr Test_function s_test_functions[] =
-	{
+	constexpr Test_function s_test_functions[] = {
 		{"read_4x3", read_4x3},
 		{"read_8x3", read_8x3},
 		{"read_16x3", read_16x3},
