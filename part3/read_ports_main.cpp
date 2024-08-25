@@ -17,7 +17,7 @@ extern "C" void read_x4(std::uint64_t iterations, std::uint8_t* buffer);
 
 namespace
 {
-	using Function = void (*) (std::uint64_t, std::uint8_t*);
+	using Function = void (*)(std::uint64_t, std::uint8_t*);
 
 	struct Test_function
 	{
@@ -25,26 +25,16 @@ namespace
 		Function function;
 	};
 
-	constexpr Test_function s_test_functions[] =
-	{
-	{ "read_x1", read_x1 },
-	{ "read_x2", read_x2 },
-	{ "read_x3", read_x3 },
-	{ "read_x4", read_x4 },
+	constexpr Test_function s_test_functions[] = {
+		{"read_x1", read_x1},
+		{"read_x2", read_x2},
+		{"read_x3", read_x3},
+		{"read_x4", read_x4},
 	};
 }
 
-[[noreturn]] int main()
+[[noreturn]] void do_work(const std::size_t buffer_size, const std::unique_ptr<unsigned char[]>& buffer)
 {
-	constexpr std::size_t buffer_size = 1 * 1024 * 1024 * 1024;
-	const auto buffer = std::make_unique<std::uint8_t[]>(buffer_size);
-
-	if (!buffer)
-	{
-		std::cerr << "Failed to allocate buffer" << std::endl;
-		return EXIT_FAILURE;
-	}
-
 	Tester testers[std::size(s_test_functions)] = {};
 	while (true)
 	{
@@ -66,4 +56,18 @@ namespace
 			}
 		}
 	}
+}
+
+int main()
+{
+	constexpr std::size_t buffer_size = 1 * 1024 * 1024 * 1024;
+	const auto buffer = std::make_unique<std::uint8_t[]>(buffer_size);
+
+	if (!buffer)
+	{
+		std::cerr << "Failed to allocate buffer" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	do_work(buffer_size, buffer);
 }
