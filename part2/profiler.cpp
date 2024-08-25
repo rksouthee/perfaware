@@ -33,8 +33,9 @@ namespace profiler
 
 	void Profiler::dump_section(const Section& section, std::uint64_t total_elapsed)
 	{
+		const std::uint64_t cpu_timer_frequency = perf::estimate_cpu_timer_freq();
 		const float percentage = static_cast<float>(section.elapsed_exclusive) / total_elapsed * 100.0f;
-		std::cout << std::format("{}[{}]: {}ms ({:.2f}%", section.name, section.hit_count, perf::ticks_to_ms(section.elapsed_exclusive), percentage);
+		std::cout << std::format("{}[{}]: {}ms ({:.2f}%", section.name, section.hit_count, perf::ticks_to_ms(section.elapsed_exclusive, cpu_timer_frequency), percentage);
 		if (section.elapsed_inclusive != section.elapsed_exclusive)
 		{
 			const float percentage_with_children = static_cast<float>(section.elapsed_inclusive) / total_elapsed * 100.0f;
@@ -44,7 +45,7 @@ namespace profiler
 		if (section.bytes_processed != 0)
 		{
 			const float mb_processed = static_cast<float>(section.bytes_processed) / (1024.0f * 1024.0f);
-			const float gb_throughput = static_cast<float>(section.bytes_processed) / (1024.0f * 1024.0f * 1024.0f) / (perf::ticks_to_ms(section.elapsed_exclusive) / 1000.0f);
+			const float gb_throughput = static_cast<float>(section.bytes_processed) / (1024.0f * 1024.0f * 1024.0f) / (perf::ticks_to_ms(section.elapsed_exclusive, cpu_timer_frequency) / 1000.0f);
 			std::cout << std::format(", {:.2f}MB at {:.2f}GB/s", mb_processed, gb_throughput);
 		}
 		std::cout << ')' << std::endl;

@@ -18,13 +18,13 @@ namespace
 
 	void print_value(const std::string_view label, const Value value, const std::uint64_t cpu_timer_frequency)
 	{
-		const std::uint64_t test_count = value[static_cast<std::size_t>(Value_kind::test_count)];
-		const double denominator = test_count ? test_count : 1.0;
+		const std::uint64_t test_count = value[Value_kind::test_count];
+		const double denominator = test_count ? static_cast<double>(test_count) : 1.0;
 
-		std::array<double, std::size(value)> normalized_value;
+		std::array<double, std::size(value)> normalized_value{};
 		for (std::size_t i = 0; i < value_count; ++i)
 		{
-			normalized_value[i] = value[i] / denominator;
+			normalized_value[i] = static_cast<double>(value[static_cast<Value_kind>(i)]) / denominator;
 		}
 
 		std::cout << std::format("{}: {:0f}", label, normalized_value[static_cast<std::size_t>(Value_kind::cpu_timer)]);
@@ -72,30 +72,31 @@ bool is_testing(Tester& tester)
 				error(tester, "open_block_count != close_block_count");
 			}
 
-			if (accum[static_cast<std::size_t>(Value_kind::byte_count)] != tester.target_processed_byte_count)
+			if (accum[Value_kind::byte_count] != tester.target_processed_byte_count)
 			{
 				error(tester, "byte_count != target_processed_byte_count");
 			}
-			
+
 			if (tester.state == Test_state::testing)
 			{
-				Test_result& results = tester.results;
-				accum[static_cast<std::size_t>(Value_kind::test_count)] = 1;
+				auto& [total, min, max] = tester.results;
+				accum[Value_kind::test_count] = 1;
 				for (std::size_t i = 0; i < accum.size(); ++i)
 				{
-					results.total[i] += accum[i];
+					const auto kind = static_cast<Value_kind>(i);
+					total[kind] += accum[kind];
 				}
 
-				const auto index = static_cast<std::size_t>(Value_kind::cpu_timer);
-				results.max[index] = std::max(results.max[index], accum[index]);
+				constexpr auto index = Value_kind::cpu_timer;
+				max[index] = std::max(max[index], accum[index]);
 
-				if (accum[index] < results.min[index])
+				if (accum[index] < min[index])
 				{
-					results.min = accum;
+					min = accum;
 					tester.tests_started_at = current_time;
 					if (tester.print_new_minimums)
 					{
-						print_value("min", results.min, tester.cpu_timer_frequency);
+						print_value("min", min, tester.cpu_timer_frequency);
 						std::cout << "                                \r";
 					}
 				}
@@ -156,19 +157,19 @@ void begin_time(Tester& tester)
 {
 	++tester.open_block_count;
 	Value& accumulator = tester.accumulate_on_this_test;
-	accumulator[static_cast<std::size_t>(Value_kind::page_faults)] -= perf::get_page_fault_count();
-	accumulator[static_cast<std::size_t>(Value_kind::cpu_timer)] -= perf::get_cpu_timer();
+	accumulator[Value_kind::page_faults] -= perf::get_page_fault_count();
+	accumulator[Value_kind::cpu_timer] -= perf::get_cpu_timer();
 }
 
 void end_time(Tester& tester)
 {
 	Value& accumulator = tester.accumulate_on_this_test;
-	accumulator[static_cast<std::size_t>(Value_kind::page_faults)] += perf::get_page_fault_count();
-	accumulator[static_cast<std::size_t>(Value_kind::cpu_timer)] += perf::get_cpu_timer();
+	accumulator[Value_kind::page_faults] += perf::get_page_fault_count();
+	accumulator[Value_kind::cpu_timer] += perf::get_cpu_timer();
 	++tester.closed_block_count;
 }
 
 void count_bytes(Tester& tester, const std::uint64_t byte_count)
 {
-	tester.accumulate_on_this_test[static_cast<std::size_t>(Value_kind::byte_count)] += byte_count;
+	tester.accumulate_on_this_test[Value_kind::byte_count] += byte_count;
 }

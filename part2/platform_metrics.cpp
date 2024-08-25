@@ -49,15 +49,24 @@ namespace perf
 		return cpu_frequency;
 	}
 
-	std::uint64_t ticks_to_ms(std::uint64_t ticks)
+	std::uint64_t ticks_to_ms(std::uint64_t ticks, const std::uint64_t cpu_frequency)
 	{
-		static std::uint64_t cpu_frequency = estimate_cpu_timer_freq();
 		if (cpu_frequency)
 		{
 			return ticks * 1000 / cpu_frequency;
 		}
 		return 0;
 	}
+
+	double ticks_to_seconds(const std::uint64_t ticks, const std::uint64_t cpu_frequency)
+	{
+		if (cpu_frequency)
+		{
+			return static_cast<double>(ticks) / static_cast<double>(cpu_frequency);
+		}
+		return 0.0;
+	}
+
 
 	std::uint64_t get_page_fault_count()
 	{

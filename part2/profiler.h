@@ -22,8 +22,8 @@ namespace profiler
 	{
 	private:
 		std::vector<Section> m_sections;
-		std::uint64_t m_start;
-		std::uint64_t m_end;
+		std::uint64_t m_start = 0;
+		std::uint64_t m_end = 0;
 		std::size_t m_current_section = 0;
 
 		void dump_section(const Section& section, std::uint64_t total_elapsed);
@@ -36,8 +36,8 @@ namespace profiler
 
 		Section& get_section(std::size_t index);
 
-		std::size_t get_active_section() const { return m_current_section; }
-		void set_active_section(std::size_t index) { m_current_section = index; }
+		[[nodiscard]] std::size_t get_active_section() const { return m_current_section; }
+		void set_active_section(const std::size_t index) { m_current_section = index; }
 	};
 
 	extern Profiler g_profiler;

@@ -24,7 +24,18 @@ enum class Value_kind
 
 constexpr std::size_t value_count = 4;
 
-using Value = std::array<std::uint64_t, value_count>;
+struct Value : std::array<std::uint64_t, value_count>
+{
+	std::uint64_t& operator[](Value_kind kind)
+	{
+		return std::array<std::uint64_t, value_count>::operator[](static_cast<std::size_t>(kind));
+	}
+
+	const std::uint64_t& operator[](Value_kind kind) const
+	{
+		return std::array<std::uint64_t, value_count>::operator[](static_cast<std::size_t>(kind));
+	}
+};
 
 struct Test_result
 {
